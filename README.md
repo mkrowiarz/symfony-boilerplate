@@ -43,6 +43,28 @@ When enabled, the script downloads two workflows:
 - **ci.yaml** — builds dev/prod images, lints, and runs tests on push/PR
 - **release.yaml** — builds and pushes a production image to GHCR on `v*` tags
 
+## Troubleshooting
+
+### TLS errors with OrbStack / reverse proxies
+
+If you see `502 Bad Gateway` or TLS errors like `tls: internal error`, it's likely a conflict between Caddy's automatic HTTPS and your local proxy (e.g., OrbStack).
+
+To disable Caddy's automatic HTTPS and serve over plain HTTP, set `SERVER_NAME` in your `.env`:
+
+```bash
+SERVER_NAME=":80"
+```
+
+Then rebuild and restart:
+
+```bash
+docker compose up --build --wait
+```
+
+The app will be available at `http://localhost` (no TLS).
+
+For more details, see the [dunglas/symfony-docker TLS docs](https://github.com/dunglas/symfony-docker/blob/main/docs/tls.md).
+
 ## Credits
 
 Built on top of [dunglas/symfony-docker](https://github.com/dunglas/symfony-docker) by [Kévin Dunglas](https://github.com/dunglas).
