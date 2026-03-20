@@ -1,50 +1,158 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bootstrap a Symfony 8 project using dunglas/symfony-docker
-# Usage: ./bootstrap.sh [project-name]
-#   project-name defaults to the current directory name
-
-PROJECT_NAME="${1:-$(basename "$PWD")}"
 TEMPLATE_REPO="dunglas/symfony-docker"
+BOILERPLATE_REPO="mkrowiarz/symfony-boilerplate"
+BOILERPLATE_BRANCH="main"
 
-echo "==> Bootstrapping Symfony 8 project: $PROJECT_NAME"
-echo "    Using template: https://github.com/$TEMPLATE_REPO"
-echo ""
-
-# 1. Download the symfony-docker skeleton (without .git history)
-echo "==> Downloading symfony-docker skeleton..."
-curl -sL "https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz" \
-  | tar xz --strip-components=1
-
-# 2. Remove upstream docs and CI
-rm -rf docs/ .github/
-
-# 3. Copy our GitHub Actions workflows
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -d "$SCRIPT_DIR/.github" ]; then
-  cp -r "$SCRIPT_DIR/.github" .github
-  echo "==> Copied GitHub Actions workflows"
+# When piped via curl | bash, stdin is not a TTY.
+# Redirect interactive input from /dev/tty so gum and read work.
+if [ ! -t 0 ]; then
+  exec < /dev/tty
 fi
 
-# 4. Pin to Symfony 8 (dev until stable release)
-echo "SYMFONY_VERSION=8.0.*" >> .env
-echo "STABILITY=dev" >> .env
+# --- Check dependencies ---
+for cmd in docker curl git; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "Error: $cmd is required but not installed." >&2
+    exit 1
+  fi
+done
 
-# 5. Initialize git repo
-git init
-git add -A
-git commit -m "Initial Symfony 8 project from dunglas/symfony-docker"
+if ! command -v gum &>/dev/null; then
+  echo "gum is required but not installed."
+  echo ""
+  read -rp "Install gum via 'go install github.com/charmbracelet/gum@latest'? [y/N] " answer
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    if ! command -v go &>/dev/null; then
+      echo "Error: go is required to install gum but not found." >&2
+      echo "Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
+      exit 1
+    fi
+    go install github.com/charmbracelet/gum@latest
+    echo "gum installed successfully."
+  else
+    echo "Aborting. Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
+    exit 1
+  fi
+fi
 
-# 6. Build and start
-echo ""
-echo "==> Building Docker images (this may take a few minutes)..."
-docker compose build --pull --no-cache
+# --- Header ---
+gum style \
+  --border double \
+  --border-foreground 212 \
+  --padding "1 2" \
+  --margin "1 0" \
+  "Symfony 8 Project Bootstrap" \
+  "Using dunglas/symfony-docker"
 
-echo ""
-echo "==> Starting containers..."
-docker compose up --wait
+# --- Project name ---
+PROJECT_NAME=$(gum input \
+  --placeholder "my-symfony-app" \
+  --prompt "Project name: " \
+  --value "$(basename "$PWD")")
 
-echo ""
-echo "==> Done! Open https://localhost and accept the self-signed TLS certificate."
-echo "    Stop with: docker compose down --remove-orphans"
+# --- Symfony version ---
+SYMFONY_VERSION=$(gum choose \
+  --header "Symfony version:" \
+  "8.0.*" "7.2.*" "7.1.*")
+
+# --- Stability ---
+if [ "$SYMFONY_VERSION" = "8.0.*" ]; then
+  DEFAULT_STABILITY="dev"
+else
+  DEFAULT_STABILITY="stable"
+fi
+STABILITY=$(gum choose \
+  --header "Stability:" \
+  --selected "$DEFAULT_STABILITY" \
+  "stable" "dev" "RC" "beta")
+
+# --- Extra packages ---
+EXTRAS=$(gum choose \
+  --no-limit \
+  --header "Install extra packages? (space to select)" \
+  "symfony/orm-pack (Doctrine ORM)" \
+  "symfony/mercure-bundle (Mercure)" \
+  "symfony/mailer (Mailer)" \
+  "symfony/messenger (Messenger)" \
+  "phpunit/phpunit (Testing)")
+
+# --- GitHub Actions ---
+INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
+
+# --- Init git ---
+INIT_GIT=$(gum confirm "Initialize git repository?" && echo "yes" || echo "no")
+
+# --- Summary ---
+gum style \
+  --border rounded \
+  --border-foreground 39 \
+  --padding "1 2" \
+  --margin "1 0" \
+  "Project:    $PROJECT_NAME" \
+  "Symfony:    $SYMFONY_VERSION" \
+  "Stability:  $STABILITY" \
+  "Extras:     ${EXTRAS:-none}" \
+  "GitHub CI:  $INCLUDE_CI" \
+  "Init git:   $INIT_GIT"
+
+gum confirm "Proceed with setup?" || exit 0
+
+# --- Download skeleton ---
+gum spin --spinner dot --title "Downloading symfony-docker skeleton..." -- \
+  bash -c "curl -sL 'https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz' | tar xz --strip-components=1"
+
+# Clean upstream docs/CI
+rm -rf docs/ .github/
+
+# --- Download GitHub Actions workflows from boilerplate repo ---
+if [ "$INCLUDE_CI" = "yes" ]; then
+  mkdir -p .github/workflows
+  for workflow in ci.yaml release.yaml; do
+    curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/.github/workflows/$workflow" \
+      -o ".github/workflows/$workflow"
+  done
+  gum log --level info "Downloaded GitHub Actions workflows"
+fi
+
+# --- Pin Symfony version ---
+echo "SYMFONY_VERSION=$SYMFONY_VERSION" >> .env
+echo "STABILITY=$STABILITY" >> .env
+gum log --level info "Pinned Symfony $SYMFONY_VERSION ($STABILITY)"
+
+# --- Build ---
+gum spin --spinner dot --title "Building Docker images (this may take a few minutes)..." --show-output -- \
+  docker compose build --pull --no-cache
+
+# --- Start ---
+gum spin --spinner dot --title "Starting containers..." --show-output -- \
+  docker compose up --wait
+
+# --- Install extras ---
+if [ -n "$EXTRAS" ]; then
+  while IFS= read -r line; do
+    pkg=$(echo "$line" | cut -d' ' -f1)
+    gum spin --spinner dot --title "Installing $pkg..." --show-output -- \
+      docker compose exec php composer require "$pkg"
+  done <<< "$EXTRAS"
+fi
+
+# --- Init git ---
+if [ "$INIT_GIT" = "yes" ]; then
+  git init
+  git add -A
+  git commit -m "Initial Symfony $SYMFONY_VERSION project from dunglas/symfony-docker"
+  gum log --level info "Git repository initialized"
+fi
+
+# --- Done ---
+gum style \
+  --border double \
+  --border-foreground 76 \
+  --padding "1 2" \
+  --margin "1 0" \
+  "Done! Your Symfony $SYMFONY_VERSION project is ready." \
+  "" \
+  "Open:  https://localhost" \
+  "Stop:  docker compose down --remove-orphans"
