@@ -100,8 +100,8 @@ gum style \
 gum confirm "Proceed with setup?" || exit 0
 
 # --- Download skeleton ---
-gum spin --spinner dot --title "Downloading symfony-docker skeleton..." -- \
-  bash -c "curl -sL 'https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz' | tar xz --strip-components=1"
+gum log --level info "Downloading symfony-docker skeleton..."
+curl -sL "https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz" | tar xz --strip-components=1
 
 # Clean upstream docs/CI
 rm -rf docs/ .github/
@@ -122,19 +122,19 @@ echo "STABILITY=$STABILITY" >> .env
 gum log --level info "Pinned Symfony $SYMFONY_VERSION ($STABILITY)"
 
 # --- Build ---
-gum spin --spinner dot --title "Building Docker images (this may take a few minutes)..." --show-output -- \
-  docker compose build --pull --no-cache
+gum log --level info "Building Docker images (this may take a few minutes)..."
+docker compose build --pull --no-cache
 
 # --- Start ---
-gum spin --spinner dot --title "Starting containers..." --show-output -- \
-  docker compose up --wait
+gum log --level info "Starting containers..."
+docker compose up --wait
 
 # --- Install extras ---
 if [ -n "$EXTRAS" ]; then
   while IFS= read -r line; do
     pkg=$(echo "$line" | cut -d' ' -f1)
-    gum spin --spinner dot --title "Installing $pkg..." --show-output -- \
-      docker compose exec php composer require "$pkg"
+    gum log --level info "Installing $pkg..."
+    docker compose exec php composer require "$pkg"
   done <<< "$EXTRAS"
 fi
 
