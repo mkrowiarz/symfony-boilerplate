@@ -88,9 +88,8 @@ main() {
     "symfony/debug-pack — Debug toolbar and profiler" \
     "symfony/maker-bundle — Code generation for controllers, entities, etc.")
 
-  # --- CI/CD ---
+  # --- GitHub Actions ---
   INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
-  INCLUDE_FLUENTCI=$(gum confirm "Include FluentCI pipeline (run CI locally with Dagger)?" && echo "yes" || echo "no")
 
   # --- Docker build cache ---
   NO_CACHE=$(gum confirm --default=yes "Build Docker images without cache?" && echo "yes" || echo "no")
@@ -109,7 +108,6 @@ main() {
     "Stability:  $STABILITY" \
     "Extras:     ${EXTRAS:-none}" \
     "GitHub CI:  $INCLUDE_CI" \
-    "FluentCI:   $INCLUDE_FLUENTCI" \
     "No cache:   $NO_CACHE" \
     "Init git:   $INIT_GIT"
 
@@ -130,14 +128,6 @@ main() {
         -o ".github/workflows/$workflow"
     done
     gum log --level info "Downloaded GitHub Actions workflows"
-  fi
-
-  # --- Set up FluentCI ---
-  if [ "$INCLUDE_FLUENTCI" = "yes" ]; then
-    curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/fluentci.sh" \
-      -o "fluentci.sh"
-    chmod +x fluentci.sh
-    gum log --level info "Downloaded FluentCI runner (./fluentci.sh)"
   fi
 
   # --- Pin Symfony version ---

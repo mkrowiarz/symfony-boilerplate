@@ -26,9 +26,8 @@ The script walks you through an interactive setup using [gum](https://github.com
 3. **Stability** — stable, dev, RC, or beta
 4. **Extra packages** — select from Symfony packs and bundles
 5. **GitHub Actions** — optional CI and release workflows
-6. **FluentCI** — optional local CI pipeline powered by Dagger
-7. **Docker build cache** — option to skip cache for clean builds
-8. **Git init** — optional repository initialization
+6. **Docker build cache** — option to skip cache for clean builds
+7. **Git init** — optional repository initialization
 
 Then it:
 
@@ -71,35 +70,6 @@ When enabled, the script downloads two workflows:
 
 - **ci.yaml** — builds dev/prod images, lints, and runs tests on push/PR
 - **release.yaml** — builds and pushes a production image to GHCR on `v*` tags
-
-## FluentCI
-
-When enabled, the bootstrap downloads a wrapper script (`fluentci.sh`) that runs CI checks locally using the published [symfony_pipeline](https://fluentci.io/pipeline/symfony_pipeline) from the FluentCI registry — no CI provider needed.
-
-### Prerequisites
-
-```bash
-brew install fluentci-io/tap/fluentci
-```
-
-Requires [Docker](https://docs.docker.com/get-docker/).
-
-### Usage
-
-| Command | What it does |
-|---|---|
-| `./fluentci.sh` | Runs CI checks (container lint, YAML lint, PHPUnit) |
-| `./fluentci.sh lint` | Linters only |
-| `./fluentci.sh test` | PHPUnit only |
-| `./fluentci.sh phpcs` | PHP CodeSniffer (PSR-12) |
-| `./fluentci.sh phpstan` | PHPStan static analysis |
-| `./fluentci.sh all` | Every available check |
-
-You can also run pipeline jobs directly:
-
-```bash
-fluentci run symfony_pipeline containerLint yamlLint phpUnit
-```
 
 ## After Bootstrap
 
