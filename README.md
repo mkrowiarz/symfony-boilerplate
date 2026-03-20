@@ -13,7 +13,7 @@ Or clone and run locally:
 
 ```bash
 git clone https://github.com/mkrowiarz/symfony-boilerplate.git
-cd my-project
+mkdir my-project && cd my-project
 ../symfony-boilerplate/bootstrap.sh
 ```
 
@@ -24,11 +24,39 @@ The script walks you through an interactive setup using [gum](https://github.com
 1. **Project name** — defaults to current directory
 2. **Symfony version** — 8.0.*, 7.2.*, or 7.1.*
 3. **Stability** — stable, dev, RC, or beta
-4. **Extra packages** — Doctrine ORM, Mercure, Mailer, Messenger, PHPUnit
+4. **Extra packages** — select from Symfony packs and bundles
 5. **GitHub Actions** — optional CI and release workflows
-6. **Git init** — optional repository initialization
+6. **Docker build cache** — option to skip cache for clean builds
+7. **Git init** — optional repository initialization
 
-Then it downloads the [dunglas/symfony-docker](https://github.com/dunglas/symfony-docker) skeleton, pins your chosen Symfony version, builds Docker images, and starts the application.
+Then it:
+
+1. Downloads the [dunglas/symfony-docker](https://github.com/dunglas/symfony-docker) skeleton
+2. Pins your chosen Symfony version and stability
+3. Builds Docker images
+4. Starts the containers to scaffold the Symfony project (first boot)
+5. Installs selected extra packages via `composer require` (Flex recipes run automatically)
+6. Rebuilds images to compile any new PHP extensions added by recipes (e.g., `pdo_pgsql`)
+7. Restarts with all services (e.g., database container from orm-pack)
+8. Stops the stack — ready for you to start when needed
+
+## Available Packages
+
+| Package | Description |
+|---|---|
+| `symfony/webapp-pack` | Full webapp: Twig, ORM, Security, Mailer, and more |
+| `symfony/orm-pack` | Doctrine ORM with migrations |
+| `symfony/twig-pack` | Twig templating |
+| `symfony/security-bundle` | Authentication and authorization |
+| `symfony/mailer` | Email sending |
+| `symfony/messenger` | Message queues and async processing |
+| `symfony/serializer-pack` | Serializer with encoders and normalizers |
+| `symfony/mercure-bundle` | Real-time updates with Mercure |
+| `symfony/test-pack` | Functional and end-to-end testing |
+| `symfony/debug-pack` | Debug toolbar and profiler |
+| `symfony/maker-bundle` | Code generation for controllers, entities, etc. |
+
+Packages are installed via `composer require`, which triggers Symfony Flex recipes. Recipes may modify your `Dockerfile`, `compose.yaml`, and configuration files automatically.
 
 ## Requirements
 
@@ -42,6 +70,22 @@ When enabled, the script downloads two workflows:
 
 - **ci.yaml** — builds dev/prod images, lints, and runs tests on push/PR
 - **release.yaml** — builds and pushes a production image to GHCR on `v*` tags
+
+## After Bootstrap
+
+Start the stack:
+
+```bash
+docker compose up --wait
+```
+
+Open `https://localhost` and accept the self-signed TLS certificate.
+
+Stop the stack:
+
+```bash
+docker compose down --remove-orphans
+```
 
 ## Troubleshooting
 
@@ -70,6 +114,16 @@ SERVER_NAME=myapp.localhost docker compose up --build --wait
 ```
 
 For more details, see the [dunglas/symfony-docker TLS docs](https://github.com/dunglas/symfony-docker/blob/main/docs/tls.md).
+
+### Database connection errors
+
+If the PHP container reports `could not find driver` when connecting to PostgreSQL, the Docker image needs to be rebuilt so the `pdo_pgsql` extension (added by the Doctrine Flex recipe) is compiled:
+
+```bash
+docker compose down
+docker compose build
+docker compose up --wait
+```
 
 ## Credits
 
