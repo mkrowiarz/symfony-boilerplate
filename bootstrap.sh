@@ -85,6 +85,9 @@ main() {
   # --- GitHub Actions ---
   INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
 
+  # --- Docker build cache ---
+  NO_CACHE=$(gum confirm --default=yes "Build Docker images without cache?" && echo "yes" || echo "no")
+
   # --- Init git ---
   INIT_GIT=$(gum confirm "Initialize git repository?" && echo "yes" || echo "no")
 
@@ -99,6 +102,7 @@ main() {
     "Stability:  $STABILITY" \
     "Extras:     ${EXTRAS:-none}" \
     "GitHub CI:  $INCLUDE_CI" \
+    "No cache:   $NO_CACHE" \
     "Init git:   $INIT_GIT"
 
   gum confirm "Proceed with setup?" || exit 0
@@ -126,8 +130,12 @@ main() {
   gum log --level info "Pinned Symfony $SYMFONY_VERSION ($STABILITY)"
 
   # --- Build ---
+  BUILD_FLAGS="--pull"
+  if [ "$NO_CACHE" = "yes" ]; then
+    BUILD_FLAGS="$BUILD_FLAGS --no-cache"
+  fi
   gum log --level info "Building Docker images (this may take a few minutes)..."
-  docker compose build --pull --no-cache
+  docker compose build $BUILD_FLAGS
 
   # --- Install extras ---
   if [ -n "$EXTRAS" ]; then
