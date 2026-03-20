@@ -137,14 +137,24 @@ main() {
   gum log --level info "Building Docker images (this may take a few minutes)..."
   docker compose build $BUILD_FLAGS
 
+  # --- Scaffold Symfony project ---
+  # The entrypoint auto-installs the Symfony skeleton on first boot
+  # when composer.json is empty. We need this before installing extras.
+  gum log --level info "Scaffolding Symfony project (first boot)..."
+  docker compose up --wait
+
   # --- Install extras ---
   if [ -n "$EXTRAS" ]; then
     while IFS= read -r line; do
       pkg=$(echo "$line" | cut -d' ' -f1)
       gum log --level info "Installing $pkg..."
-      docker compose run --rm --no-TTY php composer require "$pkg"
+      docker compose exec -T php composer require "$pkg"
     done <<< "$EXTRAS"
   fi
+
+  # --- Stop containers ---
+  gum log --level info "Stopping containers..."
+  docker compose down
 
   # --- Init git ---
   if [ "$INIT_GIT" = "yes" ]; then
