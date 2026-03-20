@@ -175,6 +175,8 @@ main() {
     "Start: docker compose up --wait" \
     "Open:  https://localhost" \
     "Stop:  docker compose down --remove-orphans"
+
+  exit 0
 }
 
 main "$@"
