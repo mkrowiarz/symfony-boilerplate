@@ -1,158 +1,165 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TEMPLATE_REPO="dunglas/symfony-docker"
-BOILERPLATE_REPO="mkrowiarz/symfony-boilerplate"
-BOILERPLATE_BRANCH="main"
+# Wrap everything in main() so bash reads the entire script before executing.
+# Without this, `curl | bash` fails because `exec < /dev/tty` cuts off
+# bash's ability to read the rest of the script from stdin.
+main() {
+  TEMPLATE_REPO="dunglas/symfony-docker"
+  BOILERPLATE_REPO="mkrowiarz/symfony-boilerplate"
+  BOILERPLATE_BRANCH="main"
 
-# When piped via curl | bash, stdin is not a TTY.
-# Redirect interactive input from /dev/tty so gum and read work.
-if [ ! -t 0 ]; then
-  exec < /dev/tty
-fi
-
-# --- Check dependencies ---
-for cmd in docker curl git; do
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "Error: $cmd is required but not installed." >&2
-    exit 1
+  # When piped via curl | bash, stdin is not a TTY.
+  # Redirect interactive input from /dev/tty so gum and read work.
+  if [ ! -t 0 ]; then
+    exec < /dev/tty
   fi
-done
 
-if ! command -v gum &>/dev/null; then
-  echo "gum is required but not installed."
-  echo ""
-  read -rp "Install gum via 'go install github.com/charmbracelet/gum@latest'? [y/N] " answer
-  if [[ "$answer" =~ ^[Yy]$ ]]; then
-    if ! command -v go &>/dev/null; then
-      echo "Error: go is required to install gum but not found." >&2
-      echo "Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
+  # --- Check dependencies ---
+  for cmd in docker curl git; do
+    if ! command -v "$cmd" &>/dev/null; then
+      echo "Error: $cmd is required but not installed." >&2
       exit 1
     fi
-    go install github.com/charmbracelet/gum@latest
-    echo "gum installed successfully."
-  else
-    echo "Aborting. Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
-    exit 1
-  fi
-fi
-
-# --- Header ---
-gum style \
-  --border double \
-  --border-foreground 212 \
-  --padding "1 2" \
-  --margin "1 0" \
-  "Symfony 8 Project Bootstrap" \
-  "Using dunglas/symfony-docker"
-
-# --- Project name ---
-PROJECT_NAME=$(gum input \
-  --placeholder "my-symfony-app" \
-  --prompt "Project name: " \
-  --value "$(basename "$PWD")")
-
-# --- Symfony version ---
-SYMFONY_VERSION=$(gum choose \
-  --header "Symfony version:" \
-  "8.0.*" "7.2.*" "7.1.*")
-
-# --- Stability ---
-if [ "$SYMFONY_VERSION" = "8.0.*" ]; then
-  DEFAULT_STABILITY="dev"
-else
-  DEFAULT_STABILITY="stable"
-fi
-STABILITY=$(gum choose \
-  --header "Stability:" \
-  --selected "$DEFAULT_STABILITY" \
-  "stable" "dev" "RC" "beta")
-
-# --- Extra packages ---
-EXTRAS=$(gum choose \
-  --no-limit \
-  --header "Install extra packages? (space to select)" \
-  "symfony/orm-pack (Doctrine ORM)" \
-  "symfony/mercure-bundle (Mercure)" \
-  "symfony/mailer (Mailer)" \
-  "symfony/messenger (Messenger)" \
-  "phpunit/phpunit (Testing)")
-
-# --- GitHub Actions ---
-INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
-
-# --- Init git ---
-INIT_GIT=$(gum confirm "Initialize git repository?" && echo "yes" || echo "no")
-
-# --- Summary ---
-gum style \
-  --border rounded \
-  --border-foreground 39 \
-  --padding "1 2" \
-  --margin "1 0" \
-  "Project:    $PROJECT_NAME" \
-  "Symfony:    $SYMFONY_VERSION" \
-  "Stability:  $STABILITY" \
-  "Extras:     ${EXTRAS:-none}" \
-  "GitHub CI:  $INCLUDE_CI" \
-  "Init git:   $INIT_GIT"
-
-gum confirm "Proceed with setup?" || exit 0
-
-# --- Download skeleton ---
-gum log --level info "Downloading symfony-docker skeleton..."
-curl -sL "https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz" | tar xz --strip-components=1
-
-# Clean upstream docs/CI
-rm -rf docs/ .github/
-
-# --- Download GitHub Actions workflows from boilerplate repo ---
-if [ "$INCLUDE_CI" = "yes" ]; then
-  mkdir -p .github/workflows
-  for workflow in ci.yaml release.yaml; do
-    curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/.github/workflows/$workflow" \
-      -o ".github/workflows/$workflow"
   done
-  gum log --level info "Downloaded GitHub Actions workflows"
-fi
 
-# --- Pin Symfony version ---
-echo "SYMFONY_VERSION=$SYMFONY_VERSION" >> .env
-echo "STABILITY=$STABILITY" >> .env
-gum log --level info "Pinned Symfony $SYMFONY_VERSION ($STABILITY)"
+  if ! command -v gum &>/dev/null; then
+    echo "gum is required but not installed."
+    echo ""
+    read -rp "Install gum via 'go install github.com/charmbracelet/gum@latest'? [y/N] " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      if ! command -v go &>/dev/null; then
+        echo "Error: go is required to install gum but not found." >&2
+        echo "Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
+        exit 1
+      fi
+      go install github.com/charmbracelet/gum@latest
+      echo "gum installed successfully."
+    else
+      echo "Aborting. Install gum manually: https://github.com/charmbracelet/gum#installation" >&2
+      exit 1
+    fi
+  fi
 
-# --- Build ---
-gum log --level info "Building Docker images (this may take a few minutes)..."
-docker compose build --pull --no-cache
+  # --- Header ---
+  gum style \
+    --border double \
+    --border-foreground 212 \
+    --padding "1 2" \
+    --margin "1 0" \
+    "Symfony 8 Project Bootstrap" \
+    "Using dunglas/symfony-docker"
 
-# --- Start ---
-gum log --level info "Starting containers..."
-docker compose up --wait
+  # --- Project name ---
+  PROJECT_NAME=$(gum input \
+    --placeholder "my-symfony-app" \
+    --prompt "Project name: " \
+    --value "$(basename "$PWD")")
 
-# --- Install extras ---
-if [ -n "$EXTRAS" ]; then
-  while IFS= read -r line; do
-    pkg=$(echo "$line" | cut -d' ' -f1)
-    gum log --level info "Installing $pkg..."
-    docker compose exec php composer require "$pkg"
-  done <<< "$EXTRAS"
-fi
+  # --- Symfony version ---
+  SYMFONY_VERSION=$(gum choose \
+    --header "Symfony version:" \
+    "8.0.*" "7.2.*" "7.1.*")
 
-# --- Init git ---
-if [ "$INIT_GIT" = "yes" ]; then
-  git init
-  git add -A
-  git commit -m "Initial Symfony $SYMFONY_VERSION project from dunglas/symfony-docker"
-  gum log --level info "Git repository initialized"
-fi
+  # --- Stability ---
+  if [ "$SYMFONY_VERSION" = "8.0.*" ]; then
+    DEFAULT_STABILITY="dev"
+  else
+    DEFAULT_STABILITY="stable"
+  fi
+  STABILITY=$(gum choose \
+    --header "Stability:" \
+    --selected "$DEFAULT_STABILITY" \
+    "stable" "dev" "RC" "beta")
 
-# --- Done ---
-gum style \
-  --border double \
-  --border-foreground 76 \
-  --padding "1 2" \
-  --margin "1 0" \
-  "Done! Your Symfony $SYMFONY_VERSION project is ready." \
-  "" \
-  "Open:  https://localhost" \
-  "Stop:  docker compose down --remove-orphans"
+  # --- Extra packages ---
+  EXTRAS=$(gum choose \
+    --no-limit \
+    --header "Install extra packages? (space to select)" \
+    "symfony/orm-pack (Doctrine ORM)" \
+    "symfony/mercure-bundle (Mercure)" \
+    "symfony/mailer (Mailer)" \
+    "symfony/messenger (Messenger)" \
+    "phpunit/phpunit (Testing)")
+
+  # --- GitHub Actions ---
+  INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
+
+  # --- Init git ---
+  INIT_GIT=$(gum confirm "Initialize git repository?" && echo "yes" || echo "no")
+
+  # --- Summary ---
+  gum style \
+    --border rounded \
+    --border-foreground 39 \
+    --padding "1 2" \
+    --margin "1 0" \
+    "Project:    $PROJECT_NAME" \
+    "Symfony:    $SYMFONY_VERSION" \
+    "Stability:  $STABILITY" \
+    "Extras:     ${EXTRAS:-none}" \
+    "GitHub CI:  $INCLUDE_CI" \
+    "Init git:   $INIT_GIT"
+
+  gum confirm "Proceed with setup?" || exit 0
+
+  # --- Download skeleton ---
+  gum log --level info "Downloading symfony-docker skeleton..."
+  curl -sL "https://github.com/$TEMPLATE_REPO/archive/refs/heads/main.tar.gz" | tar xz --strip-components=1
+
+  # Clean upstream docs/CI
+  rm -rf docs/ .github/
+
+  # --- Download GitHub Actions workflows from boilerplate repo ---
+  if [ "$INCLUDE_CI" = "yes" ]; then
+    mkdir -p .github/workflows
+    for workflow in ci.yaml release.yaml; do
+      curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/.github/workflows/$workflow" \
+        -o ".github/workflows/$workflow"
+    done
+    gum log --level info "Downloaded GitHub Actions workflows"
+  fi
+
+  # --- Pin Symfony version ---
+  echo "SYMFONY_VERSION=$SYMFONY_VERSION" >> .env
+  echo "STABILITY=$STABILITY" >> .env
+  gum log --level info "Pinned Symfony $SYMFONY_VERSION ($STABILITY)"
+
+  # --- Build ---
+  gum log --level info "Building Docker images (this may take a few minutes)..."
+  docker compose build --pull --no-cache
+
+  # --- Start ---
+  gum log --level info "Starting containers..."
+  docker compose up --wait
+
+  # --- Install extras ---
+  if [ -n "$EXTRAS" ]; then
+    while IFS= read -r line; do
+      pkg=$(echo "$line" | cut -d' ' -f1)
+      gum log --level info "Installing $pkg..."
+      docker compose exec php composer require "$pkg"
+    done <<< "$EXTRAS"
+  fi
+
+  # --- Init git ---
+  if [ "$INIT_GIT" = "yes" ]; then
+    git init
+    git add -A
+    git commit -m "Initial Symfony $SYMFONY_VERSION project from dunglas/symfony-docker"
+    gum log --level info "Git repository initialized"
+  fi
+
+  # --- Done ---
+  gum style \
+    --border double \
+    --border-foreground 76 \
+    --padding "1 2" \
+    --margin "1 0" \
+    "Done! Your Symfony $SYMFONY_VERSION project is ready." \
+    "" \
+    "Open:  https://localhost" \
+    "Stop:  docker compose down --remove-orphans"
+}
+
+main "$@"
