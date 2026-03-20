@@ -158,6 +158,12 @@ main() {
     gum log --level info "Installing:$PACKAGES"
     docker compose exec -T php composer require $PACKAGES
 
+    # Extras may add new services (e.g. orm-pack adds a database container).
+    # Stop and restart so compose picks up the updated compose.yaml.
+    gum log --level info "Restarting with updated services..."
+    docker compose down
+    docker compose up --wait
+
     # --- Post-install warnings ---
     if echo "$EXTRAS" | grep -q "symfony/orm-pack"; then
       gum style \
