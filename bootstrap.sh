@@ -129,17 +129,19 @@ main() {
   gum log --level info "Building Docker images (this may take a few minutes)..."
   docker compose build --pull --no-cache
 
-  # --- Start ---
-  gum log --level info "Starting containers..."
-  docker compose up --wait
-
-  # --- Install extras ---
+  # --- Install extras (requires running containers) ---
   if [ -n "$EXTRAS" ]; then
+    gum log --level info "Starting containers to install extras..."
+    docker compose up --wait
+
     while IFS= read -r line; do
       pkg=$(echo "$line" | cut -d' ' -f1)
       gum log --level info "Installing $pkg..."
       docker compose exec -T php composer require "$pkg"
     done <<< "$EXTRAS"
+
+    gum log --level info "Stopping containers..."
+    docker compose down
   fi
 
   # --- Init git ---
@@ -158,6 +160,7 @@ main() {
     --margin "1 0" \
     "Done! Your Symfony $SYMFONY_VERSION project is ready." \
     "" \
+    "Start: docker compose up --wait" \
     "Open:  https://localhost" \
     "Stop:  docker compose down --remove-orphans"
 }
