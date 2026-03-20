@@ -157,6 +157,22 @@ main() {
     done <<< "$EXTRAS"
     gum log --level info "Installing:$PACKAGES"
     docker compose exec -T php composer require $PACKAGES
+
+    # --- Post-install warnings ---
+    if echo "$EXTRAS" | grep -q "symfony/orm-pack"; then
+      gum style \
+        --border rounded \
+        --border-foreground 214 \
+        --padding "1 2" \
+        --margin "1 0" \
+        "Note: symfony/orm-pack added a PostgreSQL service to compose.yaml." \
+        "" \
+        "Review and adjust:" \
+        "  - POSTGRES_VERSION, POSTGRES_DB, POSTGRES_USER in .env" \
+        "  - POSTGRES_PASSWORD (change the default!)" \
+        "  - DATABASE_URL in .env or Symfony vault for production" \
+        "  - Consider a bind-mounted volume for database data"
+    fi
   fi
 
   # --- Stop containers ---
