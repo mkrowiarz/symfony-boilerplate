@@ -138,7 +138,7 @@ main() {
     while IFS= read -r line; do
       pkg=$(echo "$line" | cut -d' ' -f1)
       gum log --level info "Installing $pkg..."
-      docker compose exec php composer require "$pkg"
+      docker compose exec -T php composer require "$pkg"
     done <<< "$EXTRAS"
   fi
 
