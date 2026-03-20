@@ -26,8 +26,9 @@ The script walks you through an interactive setup using [gum](https://github.com
 3. **Stability** — stable, dev, RC, or beta
 4. **Extra packages** — select from Symfony packs and bundles
 5. **GitHub Actions** — optional CI and release workflows
-6. **Docker build cache** — option to skip cache for clean builds
-7. **Git init** — optional repository initialization
+6. **FluentCI** — optional local CI pipeline powered by Dagger
+7. **Docker build cache** — option to skip cache for clean builds
+8. **Git init** — optional repository initialization
 
 Then it:
 
@@ -70,6 +71,32 @@ When enabled, the script downloads two workflows:
 
 - **ci.yaml** — builds dev/prod images, lints, and runs tests on push/PR
 - **release.yaml** — builds and pushes a production image to GHCR on `v*` tags
+
+## FluentCI
+
+When enabled, the script downloads a [FluentCI](https://fluentci.io/) pipeline that lets you run CI checks locally using [Dagger](https://dagger.io/) — no CI provider needed.
+
+The pipeline runs:
+
+- **lint:container** — validates the Symfony dependency injection container
+- **lint:yaml** — checks YAML config files
+- **PHPUnit** — runs your test suite
+
+### Prerequisites
+
+```bash
+brew install fluentci-io/tap/fluentci
+```
+
+Requires [Dagger](https://docs.dagger.io/install/) and [Docker](https://docs.docker.com/get-docker/).
+
+### Usage
+
+```bash
+fluentci
+```
+
+The pipeline is defined in `.fluentci/ci.ts` — edit it to add more checks (PHPStan, PHP-CS-Fixer, etc.) as your project grows.
 
 ## After Bootstrap
 
