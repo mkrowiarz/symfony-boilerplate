@@ -1,19 +1,15 @@
-import { dag, type Directory } from "jsr:@fluentci/sdk@0.4.3";
-
-const exclude = ["vendor", "node_modules", ".git", ".fluentci", "var"];
+import { dag } from "jsr:@fluentci/sdk@0.4.3";
 
 /**
- * Create a PHP container with Composer, ready to run Symfony commands.
+ * Create a Pkgx environment with PHP and Composer installed.
  */
-function baseContainer(src: Directory) {
+function phpEnv() {
   return dag
-    .container()
-    .from("pkgxdev/pkgx:latest")
-    .withMountedCache("/root/.pkgx", dag.cacheVolume("pkgx-cache"))
+    .pipeline("symfony")
+    .pkgx()
+    .withPackages(["php", "composer", "git", "zip", "unzip"])
+    .withCache("/app/vendor", dag.cache("composer-vendor"))
     .withEnvVariable("COMPOSER_ALLOW_SUPERUSER", "1")
-    .withExec(["pkgx", "install", "php", "composer", "git", "zip", "unzip"])
-    .withMountedCache("/app/vendor", dag.cacheVolume("composer-vendor"))
-    .withDirectory("/app", src, { exclude })
     .withWorkdir("/app")
     .withExec(["composer", "install", "--no-interaction", "--no-progress"]);
 }
@@ -21,8 +17,8 @@ function baseContainer(src: Directory) {
 /**
  * Lint the Symfony dependency injection container.
  */
-async function lintContainer(src: Directory): Promise<string> {
-  return await baseContainer(src)
+async function lintContainer(): Promise<string> {
+  return await phpEnv()
     .withExec(["php", "bin/console", "lint:container"])
     .stdout();
 }
@@ -30,29 +26,98 @@ async function lintContainer(src: Directory): Promise<string> {
 /**
  * Lint YAML configuration files.
  */
-async function lintYaml(src: Directory): Promise<string> {
-  return await baseContainer(src)
+async function lintYaml(): Promise<string> {
+  return await phpEnv()
     .withExec(["php", "bin/console", "lint:yaml", "config", "--parse-tags"])
     .stdout();
 }
 
 /**
- * Run PHPUnit tests via Symfony's simple-phpunit bridge.
+ * Run PHPUnit tests.
  */
-async function phpUnit(src: Directory): Promise<string> {
-  return await baseContainer(src)
+async function phpUnit(): Promise<string> {
+  return await phpEnv()
     .withExec(["php", "bin/phpunit"])
     .stdout();
 }
 
-// --- Run all checks ---
-const src = dag.host().directory(".");
+/**
+ * Build the production Docker image.
+ */
+async function buildProd(): Promise<string> {
+  return await dag
+    .pipeline("build")
+    .pkgx()
+    .withPackages(["docker"])
+    .withWorkdir("/app")
+    .withExec([
+      "docker",
+      "build",
+      "--target",
+      "frankenphp_prod",
+      "-t",
+      "app-php-prod:latest",
+      ".",
+    ])
+    .stdout();
+}
 
-console.log("--- Lint container ---");
-console.log(await lintContainer(src));
+/**
+ * Build and push the production image to a container registry.
+ * Set REGISTRY and IMAGE_NAME env vars before running.
+ *
+ * Requires: docker login to your registry beforehand.
+ */
+async function deploy(): Promise<string> {
+  const registry = Deno.env.get("REGISTRY") || "ghcr.io";
+  const imageName = Deno.env.get("IMAGE_NAME");
+  const tag = Deno.env.get("IMAGE_TAG") || "latest";
 
-console.log("--- Lint YAML ---");
-console.log(await lintYaml(src));
+  if (!imageName) {
+    throw new Error(
+      "IMAGE_NAME env var is required (e.g. IMAGE_NAME=myorg/myapp)"
+    );
+  }
 
-console.log("--- PHPUnit ---");
-console.log(await phpUnit(src));
+  const fullTag = `${registry}/${imageName}:${tag}`;
+
+  return await dag
+    .pipeline("deploy")
+    .pkgx()
+    .withPackages(["docker"])
+    .withWorkdir("/app")
+    .withExec([
+      "docker",
+      "build",
+      "--target",
+      "frankenphp_prod",
+      "-t",
+      fullTag,
+      ".",
+    ])
+    .withExec(["docker", "push", fullTag])
+    .stdout();
+}
+
+// --- Determine which jobs to run ---
+const job = Deno.args[0];
+
+switch (job) {
+  case "build":
+    console.log(await buildProd());
+    break;
+  case "deploy":
+    console.log(await deploy());
+    break;
+  default:
+    // Default: run all CI checks
+    console.log("--- Lint container ---");
+    console.log(await lintContainer());
+
+    console.log("--- Lint YAML ---");
+    console.log(await lintYaml());
+
+    console.log("--- PHPUnit ---");
+    console.log(await phpUnit());
+    break;
+}
