@@ -76,11 +76,17 @@ main() {
   EXTRAS=$(gum choose \
     --no-limit \
     --header "Install extra packages? (space to select)" \
-    "symfony/orm-pack (Doctrine ORM)" \
-    "symfony/mercure-bundle (Mercure)" \
-    "symfony/mailer (Mailer)" \
-    "symfony/messenger (Messenger)" \
-    "phpunit/phpunit (Testing)")
+    "symfony/webapp-pack — Full webapp: Twig, ORM, Security, Mailer, and more" \
+    "symfony/orm-pack — Doctrine ORM" \
+    "symfony/twig-pack — Twig templating" \
+    "symfony/security-bundle — Authentication and authorization" \
+    "symfony/mailer — Email sending" \
+    "symfony/messenger — Message queues and async processing" \
+    "symfony/serializer-pack — Serializer with encoders and normalizers" \
+    "symfony/mercure-bundle — Real-time updates with Mercure" \
+    "symfony/test-pack --dev — Functional and end-to-end testing" \
+    "symfony/debug-pack --dev — Debug toolbar and profiler" \
+    "symfony/maker-bundle --dev — Code generation for controllers, entities, etc.")
 
   # --- GitHub Actions ---
   INCLUDE_CI=$(gum confirm "Include GitHub Actions workflows (CI + Release)?" && echo "yes" || echo "no")
@@ -149,12 +155,11 @@ main() {
     DEV_PACKAGES=""
     while IFS= read -r line; do
       pkg=$(echo "$line" | cut -d' ' -f1)
-      case "$pkg" in
-        phpunit/*|symfony/debug-*|symfony/profiler-*)
-          DEV_PACKAGES="$DEV_PACKAGES $pkg" ;;
-        *)
-          PACKAGES="$PACKAGES $pkg" ;;
-      esac
+      if echo "$line" | grep -q -- "--dev"; then
+        DEV_PACKAGES="$DEV_PACKAGES $pkg"
+      else
+        PACKAGES="$PACKAGES $pkg"
+      fi
     done <<< "$EXTRAS"
     if [ -n "$PACKAGES" ]; then
       gum log --level info "Installing:$PACKAGES"
