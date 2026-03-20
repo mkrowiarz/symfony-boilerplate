@@ -129,19 +129,13 @@ main() {
   gum log --level info "Building Docker images (this may take a few minutes)..."
   docker compose build --pull --no-cache
 
-  # --- Install extras (requires running containers) ---
+  # --- Install extras ---
   if [ -n "$EXTRAS" ]; then
-    gum log --level info "Starting containers to install extras..."
-    docker compose up --wait
-
     while IFS= read -r line; do
       pkg=$(echo "$line" | cut -d' ' -f1)
       gum log --level info "Installing $pkg..."
-      docker compose exec -T php composer require "$pkg"
+      docker compose run --rm -T php composer require "$pkg"
     done <<< "$EXTRAS"
-
-    gum log --level info "Stopping containers..."
-    docker compose down
   fi
 
   # --- Init git ---
