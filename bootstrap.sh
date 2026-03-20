@@ -158,10 +158,11 @@ main() {
     gum log --level info "Installing:$PACKAGES"
     docker compose exec -T php composer require $PACKAGES
 
-    # Extras may add new services (e.g. orm-pack adds a database container).
-    # Stop and restart so compose picks up the updated compose.yaml.
-    gum log --level info "Restarting with updated services..."
+    # Extras may modify the Dockerfile (e.g. adding PHP extensions like pdo_pgsql)
+    # and compose.yaml (e.g. adding a database service). Rebuild and restart.
+    gum log --level info "Rebuilding images with new extensions..."
     docker compose down
+    docker compose build
     docker compose up --wait
 
     # --- Post-install warnings ---
