@@ -23,15 +23,15 @@ fi
 case "${1:-ci}" in
   ci)
     echo "Running CI checks (container lint, yaml lint, phpunit)..."
-    fluentci run "$PIPELINE" containerLint yamlLint phpUnit
+    fluentci run "$PIPELINE" container-lint yaml-lint phpunit
     ;;
   lint)
     echo "Running linters..."
-    fluentci run "$PIPELINE" containerLint yamlLint
+    fluentci run "$PIPELINE" container-lint yaml-lint
     ;;
   test)
     echo "Running PHPUnit..."
-    fluentci run "$PIPELINE" phpUnit
+    fluentci run "$PIPELINE" phpunit
     ;;
   phpcs)
     echo "Running PHP CodeSniffer..."
@@ -43,7 +43,7 @@ case "${1:-ci}" in
     ;;
   all)
     echo "Running all checks..."
-    fluentci run "$PIPELINE" phpcs phpstan twigLint xliffLint yamlLint containerLint doctrineLint phpUnit
+    fluentci run "$PIPELINE" phpcs phpstan twig-lint xliff-lint yaml-lint container-lint doctrine-lint phpunit
     ;;
   *)
     # Pass through to fluentci directly
