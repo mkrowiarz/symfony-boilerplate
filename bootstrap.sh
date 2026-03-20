@@ -132,12 +132,12 @@ main() {
     gum log --level info "Downloaded GitHub Actions workflows"
   fi
 
-  # --- Download FluentCI pipeline from boilerplate repo ---
+  # --- Set up FluentCI ---
   if [ "$INCLUDE_FLUENTCI" = "yes" ]; then
-    mkdir -p .fluentci
-    curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/.fluentci/ci.ts" \
-      -o ".fluentci/ci.ts"
-    gum log --level info "Downloaded FluentCI pipeline"
+    curl -sL "https://raw.githubusercontent.com/$BOILERPLATE_REPO/$BOILERPLATE_BRANCH/fluentci.sh" \
+      -o "fluentci.sh"
+    chmod +x fluentci.sh
+    gum log --level info "Downloaded FluentCI runner (./fluentci.sh)"
   fi
 
   # --- Pin Symfony version ---

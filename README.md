@@ -74,7 +74,7 @@ When enabled, the script downloads two workflows:
 
 ## FluentCI
 
-When enabled, the script downloads a [FluentCI](https://fluentci.io/) pipeline that lets you run CI checks, build, and deploy locally — no CI provider needed.
+When enabled, the bootstrap downloads a wrapper script (`fluentci.sh`) that runs CI checks locally using the published [symfony_pipeline](https://fluentci.io/pipeline/symfony_pipeline) from the FluentCI registry — no CI provider needed.
 
 ### Prerequisites
 
@@ -84,30 +84,22 @@ brew install fluentci-io/tap/fluentci
 
 Requires [Docker](https://docs.docker.com/get-docker/).
 
-### Jobs
+### Usage
 
 | Command | What it does |
 |---|---|
-| `fluentci` | Runs all CI checks (lint + tests) |
-| `fluentci run . build` | Builds the production Docker image |
-| `fluentci run . deploy` | Builds and pushes to a container registry |
+| `./fluentci.sh` | Runs CI checks (container lint, YAML lint, PHPUnit) |
+| `./fluentci.sh lint` | Linters only |
+| `./fluentci.sh test` | PHPUnit only |
+| `./fluentci.sh phpcs` | PHP CodeSniffer (PSR-12) |
+| `./fluentci.sh phpstan` | PHPStan static analysis |
+| `./fluentci.sh all` | Every available check |
 
-The default CI run executes:
-
-- **lint:container** — validates the Symfony dependency injection container
-- **lint:yaml** — checks YAML config files
-- **PHPUnit** — runs your test suite
-
-### Deploy
-
-The `deploy` job requires a registry login and env vars:
+You can also run pipeline jobs directly:
 
 ```bash
-docker login ghcr.io
-IMAGE_NAME=myorg/myapp IMAGE_TAG=v1.0.0 fluentci run . deploy
+fluentci run symfony_pipeline containerLint yamlLint phpUnit
 ```
-
-The pipeline is defined in `.fluentci/ci.ts` — edit it to add more checks (PHPStan, PHP-CS-Fixer, etc.) as your project grows.
 
 ## After Bootstrap
 
