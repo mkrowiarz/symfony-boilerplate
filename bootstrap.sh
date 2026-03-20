@@ -146,11 +146,24 @@ main() {
   # --- Install extras ---
   if [ -n "$EXTRAS" ]; then
     PACKAGES=""
+    DEV_PACKAGES=""
     while IFS= read -r line; do
-      PACKAGES="$PACKAGES $(echo "$line" | cut -d' ' -f1)"
+      pkg=$(echo "$line" | cut -d' ' -f1)
+      case "$pkg" in
+        phpunit/*|symfony/debug-*|symfony/profiler-*)
+          DEV_PACKAGES="$DEV_PACKAGES $pkg" ;;
+        *)
+          PACKAGES="$PACKAGES $pkg" ;;
+      esac
     done <<< "$EXTRAS"
-    gum log --level info "Installing:$PACKAGES"
-    docker compose exec -T php composer require $PACKAGES
+    if [ -n "$PACKAGES" ]; then
+      gum log --level info "Installing:$PACKAGES"
+      docker compose exec -T php composer require $PACKAGES
+    fi
+    if [ -n "$DEV_PACKAGES" ]; then
+      gum log --level info "Installing (dev):$DEV_PACKAGES"
+      docker compose exec -T php composer require --dev $DEV_PACKAGES
+    fi
   fi
 
   # --- Stop containers ---
