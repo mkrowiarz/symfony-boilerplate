@@ -63,6 +63,12 @@ docker compose up --build --wait
 
 The app will be available at `http://localhost` (no TLS).
 
+You can also pass `SERVER_NAME` inline without editing `.env`:
+
+```bash
+SERVER_NAME=myapp.localhost docker compose up --build --wait
+```
+
 For more details, see the [dunglas/symfony-docker TLS docs](https://github.com/dunglas/symfony-docker/blob/main/docs/tls.md).
 
 ## Credits
